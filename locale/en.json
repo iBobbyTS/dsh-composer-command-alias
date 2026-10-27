@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Chinese Comma Command Trigger",
+    "description": "Typing 、 at the start of a message or after a space opens the same slash-command menu as typing /. A 顿号 after a character stays untouched."
+  }
+}

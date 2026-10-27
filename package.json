@@ -1,0 +1,33 @@
+{
+  "name": "@local/dsh-composer-command-alias",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Typing the Chinese enumeration comma at the start of a message (or after a space) opens the same slash-command menu as typing /.",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "README.zh.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  }
+}

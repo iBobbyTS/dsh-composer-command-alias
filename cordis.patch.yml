@@ -1,0 +1,4 @@
+# The Host row activates the bundle; its dsh.client entry loads the browser half.
+- insert:
+    - id: dsh-composer-command-alias
+      name: '@local/dsh-composer-command-alias'
