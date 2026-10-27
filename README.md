@@ -1,43 +1,51 @@
-# DSH Composer Command Alias
+# DSH Composer Trigger Aliases
 
-A browser-side DSH plugin that makes the Chinese enumeration comma `、` open the same command and skill menu as the `/` trigger in the chat composer. Under a Chinese IME the `/` key usually produces `、`, so this plugin is what lets a Chinese-typing session reach commands and skills without switching to an English layout.
+A browser-side DSH plugin that gives the chat composer two trigger characters the input pipeline does not accept on its own:
 
-Pressing `、` only shows the menu. The comma stays in the draft: picking a candidate replaces it (a command chip, or the `/name ` skill text), while ignoring or dismissing the menu leaves the message exactly as typed.
+- `、` — the enumeration comma a Chinese IME types for the `/` key — opens the same command and skill menu as `/`.
+- `$` / `￥` open the skill source alone: the same native menu, narrowed to one source, so only skills are listed.
+
+Neither trigger rewrites the draft. Pressing one only shows the menu; picking a candidate replaces the trigger token (a command chip, or the `/name ` skill text), while ignoring or dismissing the menu leaves the message exactly as typed.
 
 ## Behaviour
 
-The menu opens under the same word-boundary rule the native `/` trigger uses (`detectTrigger` in `@deepseek-ai/dsh-client-ui-input-trigger`), applied to the character before the comma:
+The menu opens under the same word-boundary rule the native `/` trigger uses (`detectTrigger` in `@deepseek-ai/dsh-client-ui-input-trigger`):
 
-| Draft before the comma | Result |
+| Draft before the trigger | Result |
 | --- | --- |
-| Start of the draft (leading whitespace allowed) | the command menu opens over `/` semantics |
-| After a space or newline | the command menu opens |
-| After punctuation (`：`, `，`, `)`, `！`, …) | the command menu opens |
-| After a letter, digit, underscore, or CJK character | Nothing opens; the comma is ordinary text |
+| Start of the draft (leading whitespace allowed) | the menu opens |
+| After a space or newline | the menu opens |
+| After punctuation (`：`, `，`, `)`, `！`, …) | the menu opens |
+| After a letter, digit, underscore, or CJK character | Nothing opens; the character is ordinary text |
 
-So `甲、乙` and `A、B` stay untouched, while a message that starts with `、` gets the same menu as one that starts with `/`. Everything downstream is the native pipeline: commands, the skill group, keyboard navigation, candidate filtering, `@` references, Escape, and the `、name` token a pick consumes.
+`$` and `￥` add one rule, because Chinese text rarely types spaces: a skill alias also opens mid-text once a name-shaped character follows it. `用$sectioned` opens the skill menu, while `甲$` and `价格$100` stay inert.
+
+So `甲、乙` and `A、B` stay untouched, while a message that starts with `、` gets the full menu and `$sec` gets the skill menu filtered to `sectioned…`. Everything downstream is the native pipeline: candidate filtering, keyboard navigation, IME handling, Escape, click, and the token a pick consumes.
 
 Because the draft is never rewritten:
 
-- Typing `、goal` filters the menu to `goal` while the composer still shows `、goal`.
-- Picking a command replaces `、goal` with the command chip, exactly as picking after a typed `/goal` would.
-- Dismissing the menu, or sending without picking, keeps `、goal` as ordinary message text.
+- Typing `、goal` filters the command menu to `goal` while the composer still shows `、goal`; `$sec` filters the skill menu the same way.
+- Picking a command replaces `、goal` with the command chip; picking a skill replaces `$sec` with `/sectioned-feature-development `.
+- Dismissing the menu, or sending without picking, keeps `、goal` / `$sec` as ordinary message text.
 - No undo entry is created and the composer history is untouched, because nothing was edited behind your back.
 
 ## Why the plugin needs the trigger controller
 
-There is no extension point for new trigger characters. `InputTriggerSource.trigger` is typed `'/' | '@'`, and the detection core only scans for those two, so a plugin cannot register a third source for `、`: it would never receive a candidate request.
+There is no extension point for new trigger characters. `InputTriggerSource.trigger` is typed `'/' | '@'`, and the detection core only scans for those two, so a plugin cannot register a third source for `、` or `$`: it would never receive a candidate request.
 
-`InputTriggerController.track(draft, caret, guard, draftRev)` is the single entry the composer's own wiring uses, and `ctx.inputTriggers.sessionOf(sessionCtx)` is public on the input-trigger service. The plugin resolves the very controller the composer uses, hands it a copy of the draft whose boundary comma is spelled `/`, and lets the native menu open over that hit. The hit's span covers the real `、query` characters, so the pick paths operate on the text the user actually typed.
+The plugin therefore drives the pipeline directly, through surfaces the composer's own wiring uses:
 
-The visible surface is one invisible resident of the `conversation.input.overlay` slot, which subscribes to the session's input state and releases everything when the composer unmounts.
+- `InputTriggerController.track(draft, caret, guard, draftRev)` for the comma: the same draft with the boundary comma spelled `/`, so the native menu opens over that hit. The hit's span covers the real `、query` characters, so a pick cuts the text the user actually typed.
+- `InputTriggerController.toggleSource('skill', hit)` for the skill aliases: the path the composer's own attach/command button uses to open a single source. The menu, its rows, filtering, and pick handling stay native — only the roster is narrowed, which is why no menu UI is copied.
+
+No panel markup is reimplemented. The visible surface is one invisible resident of the `conversation.input.overlay` slot, which subscribes to the session's input state and releases everything when the composer unmounts.
 
 ## Limits
 
-- Uses two non-declared seams: the `[data-composer-input]` marker to read the caret, and the controller's `track()` as an entry point. Both are stable public surfaces of their packages, but neither is offered as a plugin extension point, so a DSH update may change them without notice.
+- Uses three non-declared seams: the `[data-composer-input]` marker to read the caret, and the controller's `track()` / `toggleSource()` as entry points. All are stable public surfaces of their packages, but none is offered as a plugin extension point, so a DSH update may change them without notice.
 - The draft must be a single chip-free block. The plugin compares the DOM text with the published draft and stays inert when they differ, which is the case once a reference or command chip is in play or the draft spans several paragraphs.
-- Only `、` is aliased. Full-width variants such as `／`, and other IME punctuation, are not.
-- The `$` / `￥` skill-only picker is not part of this plugin: the native menu cannot be filtered to a single source, so that needs its own panel.
+- The skill panel is the source named `skill`. A profile that does not load `@deepseek-ai/dsh-client-ui-skill` gets no skill menu; `$` then simply stays inert.
+- Only `、`, `$`, and `￥` are aliased. Other IME punctuation and full-width variants such as `／` are not.
 
 ## Install
 

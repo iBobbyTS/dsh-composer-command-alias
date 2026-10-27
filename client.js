@@ -1,6 +1,11 @@
 /**
- * Browser half: opens the native slash menu for the Chinese enumeration comma
- * (、) without touching the draft, and lets a pick decide what happens.
+ * Browser half: opens the native menus for two IME-hostile triggers without
+ * touching the draft, and lets a pick decide what happens.
+ *
+ * - `、` (the enumeration comma a Chinese IME types for the "/" key) opens the
+ *   whole command menu, exactly as `/` would.
+ * - `$` / `￥` open the skill source alone: the same native menu, narrowed to
+ *   one source through the controller's `toggleSource`, so only skills list.
  *
  * Why this is needed at all: the input-trigger pipeline accepts no new trigger
  * characters. `InputTriggerSource.trigger` is typed `'/' | '@'`, and
@@ -35,8 +40,14 @@ window.__ModuleLoader__.load({
 
     /** The Chinese enumeration comma this plugin treats as a command trigger. */
     const ALIAS = '、';
-    /** The native command trigger it is presented as to the pipeline. */
+    /** The native command trigger the aliases are presented as to the pipeline. */
     const TRIGGER = '/';
+    /** Characters that open the skill source alone. */
+    const SKILL_ALIASES = ['$', '￥'];
+    /** A skill query starts with a model-name character, never with a digit. */
+    const SKILL_QUERY_START = /^[A-Za-z_]$/;
+    /** The menu source name ui-skill registers (skill candidates live there). */
+    const SKILL_SOURCE = 'skill';
     /** The composer's editable root, bound by ui-conversation's DraftEditor. */
     const COMPOSER = '[data-composer-input]';
     const WORD_CHAR = /[\p{L}\p{N}_]/u;
@@ -70,22 +81,31 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * Find the comma this attempt would present as a trigger: the rightmost
-     * boundary comma in the token that ends at the caret, exactly where
-     * detection would find a typed "/".
+     * Find the alias this attempt would present as a trigger: the rightmost
+     * alias in the token that ends at the caret, exactly where detection would
+     * find a typed "/".
+     *
+     * A comma follows the trigger word-boundary rule. A skill alias follows it
+     * too, but also opens mid-text once a name-shaped character follows it, so
+     * "用$sectioned" works in a language that rarely types spaces. A lone "$"
+     * after a word character (a price, "价格$") stays inert until then.
      * @param draft - the composer's detect-projection draft.
      * @param caret - caret offset into `draft`.
-     * @returns the comma's index, or -1 when the caret ends no such token.
+     * @returns the alias index and whether it opens the skill source, or null.
      */
-    function aliasStart(draft, caret) {
+    function aliasToken(draft, caret) {
       for (let i = caret - 1; i >= 0; i -= 1) {
         const ch = draft.charAt(i);
-        if (WHITESPACE.test(ch)) return -1;
-        if (ch !== ALIAS) continue;
-        if (!boundaryOpen(i === 0 ? undefined : draft.charAt(i - 1))) continue;
-        return i;
+        if (WHITESPACE.test(ch)) return null;
+        if (ch === ALIAS) {
+          if (!boundaryOpen(i === 0 ? undefined : draft.charAt(i - 1))) continue;
+          return { start: i, skill: false };
+        }
+        if (!SKILL_ALIASES.includes(ch)) continue;
+        if (boundaryOpen(i === 0 ? undefined : draft.charAt(i - 1))) return { start: i, skill: true };
+        if (i + 1 <= caret - 1 && SKILL_QUERY_START.test(draft.charAt(i + 1))) return { start: i, skill: true };
       }
-      return -1;
+      return null;
     }
 
     /**
@@ -116,6 +136,8 @@ window.__ModuleLoader__.load({
           const sessionId = props.sessionId;
           React.useLayoutEffect(() => {
             let unsubscribe = null;
+            /** Token signature of the skill panel this effect last opened. */
+            let lastSkill = null;
 
             /**
              * Offer the current draft to the trigger pipeline with the boundary
@@ -128,7 +150,7 @@ window.__ModuleLoader__.load({
               try {
                 const state = input.state.getSnapshot();
                 if (state.phase !== 'plain' || state.occurrences.length > 0) return;
-                if (!state.draft.includes(ALIAS)) return;
+                if (!state.draft.includes(ALIAS) && !SKILL_ALIASES.some(ch => state.draft.includes(ch))) return;
                 const caret = composerCaret();
                 if (caret === null) return;
                 const before = textUpTo(caret.root, caret.node, caret.offset);
@@ -136,10 +158,26 @@ window.__ModuleLoader__.load({
                 // while the draft is a single chip-free block; otherwise the
                 // pipeline would receive a span it cannot cut.
                 if (before === '' || state.draft.slice(0, before.length) !== before) return;
-                const start = aliasStart(state.draft, before.length);
-                if (start < 0) return;
-                const synthetic = state.draft.slice(0, start) + TRIGGER + state.draft.slice(start + 1);
-                controller.track(synthetic, before.length, { tier: 'plain' }, state.draftRev);
+                const token = aliasToken(state.draft, before.length);
+                if (token === null) return;
+                if (!token.skill) {
+                  const synthetic = state.draft.slice(0, token.start) + TRIGGER + state.draft.slice(token.start + 1);
+                  controller.track(synthetic, before.length, { tier: 'plain' }, state.draftRev);
+                  return;
+                }
+                // The skill panel is the native menu narrowed to one source.
+                // Re-issuing the same token would toggle it closed, and one edit
+                // can publish twice, so the last issued token is remembered.
+                const key = `${token.start}:${before.length}:${state.draftRev}`;
+                if (key === lastSkill) return;
+                lastSkill = key;
+                controller.toggleSource(SKILL_SOURCE, {
+                  trigger: TRIGGER,
+                  query: state.draft.slice(token.start + 1, before.length),
+                  quoted: false,
+                  position: state.draft.slice(0, token.start).trim() === '' ? 'leading' : 'inline',
+                  span: { start: token.start, end: before.length, draftRev: state.draftRev },
+                });
               } catch (error) {
                 // A retired Session or a shutting-down controller must not take
                 // the composer down with it.
@@ -162,7 +200,7 @@ window.__ModuleLoader__.load({
                 unsubscribe = input.state.subscribe(() => {
                   queueMicrotask(() => { attempt(input, controller) });
                 });
-                // A comma may already be in the draft when this entry loads.
+                // An alias may already sit in the draft when this entry loads.
                 attempt(input, controller);
               } catch (error) {
                 console.error('[dsh-composer-command-alias] composer binding unavailable:', error);

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Chinese Comma Command Trigger",
-    "description": "Typing 、 at the start of a message or after a space opens the same slash-command menu as typing /. A 顿号 after a character stays untouched."
+    "title": "Comma & Skill Triggers",
+    "description": "「、」 opens the command menu and 「$」/「￥」 open a skills-only menu. A pick replaces the trigger; an unused trigger stays in the draft as typed."
   }
 }
