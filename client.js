@@ -508,8 +508,6 @@ window.__ModuleLoader__.load({
             let stopEditor = null;
             /** Releases the diagnostic hooks (null until the session resolves). */
             let stopDebug = null;
-            /** Token signature of the skill panel this effect last opened. */
-            let lastSkill = null;
 
             /**
              * Offer the current draft to the trigger pipeline: a token holding a
@@ -551,16 +549,15 @@ window.__ModuleLoader__.load({
                   controller.track(synthetic, caret, { tier: 'plain' }, state.draftRev);
                   return;
                 }
-                // The skill panel is the native menu narrowed to one source.
-                // Re-issuing the same token would only re-seed it, and one edit
-                // can publish twice, so the last issued token is remembered.
-                const key = `${token.start}:${caret}:${state.draftRev}`;
-                if (key === lastSkill) {
-                  trace({ caret, token, why: 'skill-dedup' });
+                // An open panel is the pipeline's: it re-filters it through the
+                // composer's own track, and `toggleSource` would read a second
+                // offer of the source it already shows as the gesture that
+                // closes it. Only a closed panel needs the skill source put back.
+                if (controller.menu.getSnapshot().open) {
+                  trace({ caret, token, why: 'skill-already-open' });
                   return;
                 }
-                lastSkill = key;
-                trace({ caret, token, key, why: 'skill-open' });
+                trace({ caret, token, why: 'skill-open' });
                 controller.toggleSource(SKILL_SOURCE, {
                   trigger: TRIGGER,
                   query: state.draft.slice(token.start + 1, caret),
