@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../client.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8');
 function attempt(draft, node, phase = 'plain', occurrences = []) {
   let entry, component; const effects = []; const calls = [];
   const input = {
