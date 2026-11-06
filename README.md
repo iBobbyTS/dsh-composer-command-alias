@@ -9,6 +9,10 @@ A browser-side DSH plugin that opens native composer menus without rewriting the
 
 Picking a candidate replaces its trigger token. Dismissing the menu or sending without a selection keeps the typed text unchanged. Filtering, keyboard navigation and IME handling use the native menu.
 
+## Compatibility
+
+Verified: DSH 0.2.2-rc.1 (source review and automated checks); Desktop testing has not been completed.
+
 ## Install
 
 For Desktop, launch the app once, quit it, and run the command below with its bundled CLI.
