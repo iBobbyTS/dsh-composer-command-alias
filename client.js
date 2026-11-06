@@ -440,6 +440,14 @@ window.__ModuleLoader__.load({
      * @returns the caret offset into the draft, or null when the composer is
      * not the focused surface or the selection covers text.
      */
+    /** Quote chips expand in InputState.draft but occupy one detect character. */
+    function hasQuoteChip(input) {
+      const root = input.editor.getEditorState().toJSON().root;
+      const containsQuote = node => node.type === 'quote'
+        || (node.children || []).some(containsQuote);
+      return containsQuote(root);
+    }
+
     function composerCaret(input) {
       const root = document.querySelector(COMPOSER);
       if (root === null || !root.contains(document.activeElement)) return null;
@@ -531,6 +539,10 @@ window.__ModuleLoader__.load({
                 }
                 if (!state.draft.includes(ALIAS) && !SKILL_ALIASES.some(ch => state.draft.includes(ch))) {
                   trace({ why: 'no-alias-in-draft' });
+                  return;
+                }
+                if (hasQuoteChip(input)) {
+                  trace({ why: 'quoted-draft' });
                   return;
                 }
                 const caret = composerCaret(input);

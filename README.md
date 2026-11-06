@@ -47,7 +47,7 @@ No panel markup is reimplemented. The visible surface is one invisible resident 
 ## Limits
 
 - Uses non-declared seams: the `[data-composer-input]` marker only to confirm focus is in the composer; the composer's `caretSpan()` to read the caret (not on the `SessionInput` type, but the composer's own button calls it); the editor's `registerUpdateListener` (Lexical's public API) for commits that change no text; and the controller's `track()` / `toggleSource()` as entry points. All are stable implementation of their packages, but none is offered as a plugin extension point, so a DSH update may change them without notice.
-- A draft carrying a chip is left alone: the draft expands a chip to text while the trigger pipeline counts it as one character, so the two coordinate spaces diverge. (Plain multi-paragraph drafts hold no chip and are unaffected.)
+- A draft carrying a reference or quote chip is left alone: the draft expands a chip to text while the trigger pipeline counts it as one character, so the two coordinate spaces diverge. (Plain multi-paragraph drafts hold no chip and are unaffected.)
 - The skill panel is the source named `skill`. A profile that does not load `@deepseek-ai/dsh-client-ui-skill` gets no skill menu; `$` then simply stays inert.
 - Only `、`, `$`, and `￥` are aliased. Other IME punctuation and full-width variants such as `／` are not.
 
