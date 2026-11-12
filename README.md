@@ -11,7 +11,7 @@ Picking a candidate replaces its trigger token. Dismissing the menu or sending w
 
 ## Compatibility
 
-Verified: DSH 0.2.2-rc.1 (source review and automated checks); Desktop testing has not been completed.
+Verified: DSH 0.2.2-rc.2 (source review, automated checks, and isolated Web checks): `、` opened native command/skill menus, `$acceptance` opened only skills, Escape preserved the draft, and selecting `compact` ran the native command. Desktop and real IME interaction remain untested.
 
 ## Install
 

@@ -86,7 +86,7 @@ try {
      runInNewContext(readFileSync(join(unpacked, 'lib/client.js'), 'utf8'), { window: { __ModuleLoader__: { load(value) { registration = value } } } })
      assert.equal(registration?.id, pkg.name)
      assert.equal(typeof registration.factory, 'function')
-     // DSH 0.2.2-rc.1 platform modules consumed here; no UI is mounted.
+     // DSH 0.2.2-rc.2 platform modules consumed here; no UI is mounted.
      const nativeModules = new Set(["react"])
      const requireInstalled = createRequire(join(installed, 'package.json'))
      const client = registration.factory(specifier => {
